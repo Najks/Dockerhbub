@@ -81,7 +81,6 @@ jobs:
     name: Izgradnja in Namestitev
     runs-on: self-hosted
     needs: run-tests
-    if: ${{ needs.setup-environment.outputs.environment_ok == 'true' }}
     steps:
       - uses: actions/checkout@v2
       - name: Izgradnja Docker Slike
