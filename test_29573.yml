@@ -1,0 +1,96 @@
+name: Testiranje Python Projekta in Deployment
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  setup-environment:
+    name: Priprava Okolja
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10']
+    outputs:
+      environment_ok: ${{ steps.check_error.outputs.success }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: false
+      - name: Nastavi Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Namesti pip in Python odvisnosti
+        run: |
+          sudo apt-get update
+          sudo apt-get install python3-pip -y
+          python -m pip install --upgrade pip
+          pip install pytest numpy opencv-python-headless
+      - name: Preveri napake in zapiši v napaka.txt
+        id: check_error
+        run: |
+          if echo "Preverjanje napak..." && false; then
+            echo "::set-output name=success::false"
+          else
+            echo "::set-output name=success::true"
+          fi > napaka.txt 2>&1
+      - name: Shrani napako kot artefakt, če obstaja
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: napaka
+          path: napaka.txt
+
+  run-tests:
+    name: Izvajanje Testov
+    runs-on: self-hosted
+    needs: setup-environment
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10']
+    steps:
+      - uses: actions/checkout@v2
+      - name: Nastavi Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Prenesi artefakte
+        uses: actions/download-artifact@v2
+        with:
+          name: napaka
+      - name: Preveri prisotnost napake (ne vpliva na izvajanje testov)
+        run: |
+          if [ -f napaka.txt ]; then
+            echo "Opozorilo: Napaka pri pripravi okolja, vendar nadaljujemo z izvajanjem testov."
+            cat napaka.txt
+          fi
+      - name: Izvedi teste z pytest
+        run: pytest testiranje.py --python_version=${{ matrix.python-version }}
+      - name: Shrani rezultate testov kot artefakt
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-reports-${{ matrix.python-version }}
+          path: pytest-results.xml
+
+  build-and-deploy:
+    name: Izgradnja in Namestitev
+    runs-on: self-hosted
+    needs: run-tests
+    if: ${{ needs.setup-environment.outputs.environment_ok == 'true' }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Izgradnja Docker Slike
+        run: ./zapakiraj_27593.sh
+      - name: Namestitev
+        run: ./zazeni_27593.sh
+      - name: Preveri zagon kontejnerja
+        run: |
+          if ! docker ps | grep 'my_container'; then
+            echo "Kontejner ni zagnan!"
+            exit 1
+          fi
