@@ -86,8 +86,6 @@ jobs:
         run: |
           chmod +x ./zapakiraj_27593.sh
           chmod +x ./zazeni_27593.sh
-      - name: Prijava v Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login --username "${{ secrets.DOCKER_USERNAME }}" --password-stdin
       - name: Izgradnja Docker Slike
         run: ./zapakiraj_27593.sh
       - name: Namestitev
