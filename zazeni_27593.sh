@@ -1,10 +1,15 @@
 #!/bin/bash
 
-# Definiraj ime slike
-IMAGE_NAME="najks/orv_vaja2"
-TAG="2024-04-13-19-24"
+# Create directory for testing
+mkdir test
+cd test
 
-docker pull $IMAGE_NAME:$VERSION_TAG
+# Run Docker container
+docker run -it --name testing najks/orv_vaja2:latest
 
-# Zagnajte Docker kontejner
-docker run -d --name my_app_container $IMAGE_NAME:$VERSION_TAG
+# Remove Docker container
+docker rm testing 
+
+# Return to previous directory and remove the testing directory
+cd ..
+rmdir test
